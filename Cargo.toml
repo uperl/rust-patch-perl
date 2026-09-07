@@ -1,0 +1,12 @@
+[package]
+name = "patch-perl"
+version = "0.1.0"
+edition = "2024"
+description = "Rust port of the classic Devel::PatchPerl"
+repository = "https://github.com/uperl/patch-perl"
+license = "MIT"
+
+[dependencies]
+anyhow = "1.0.104"
+
+
