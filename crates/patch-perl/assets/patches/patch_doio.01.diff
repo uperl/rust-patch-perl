@@ -1,0 +1,19 @@
+--- doio.c.org  2004-06-07 23:14:45.000000000 +0200
++++ doio.c  2003-11-04 08:03:03.000000000 +0100
+@@ -75,6 +75,16 @@
+ #  endif
+ #endif
+
++#if _SEM_SEMUN_UNDEFINED
++union semun
++{
++  int val;
++  struct semid_ds *buf;
++  unsigned short int *array;
++  struct seminfo *__buf;
++};
++#endif
++
+ bool
+ do_open(gv,name,len,as_raw,rawmode,rawperm,supplied_fp)
+ GV *gv;

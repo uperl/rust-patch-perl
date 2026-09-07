@@ -1,0 +1,15 @@
+[package]
+name = "patch-perl-plugin-example"
+version.workspace = true
+edition.workspace = true
+license.workspace = true
+repository.workspace = true
+authors.workspace = true
+description = "Example patch-perl plugin, used by the patch-perl integration tests"
+publish = false
+
+[lib]
+crate-type = ["cdylib"]
+
+[dependencies]
+patch-perl-plugin.workspace = true

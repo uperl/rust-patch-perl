@@ -1,0 +1,292 @@
+--- utils/h2ph.PL
++++ utils/h2ph.PL
+@@ -36,13 +36,16 @@
+ 
+ print OUT <<'!NO!SUBS!';
+ 
++use strict;
++
+ use Config;
+ use File::Path qw(mkpath);
+ use Getopt::Std;
+ 
+ getopts('Dd:rlhaQ');
++use vars qw($opt_D $opt_d $opt_r $opt_l $opt_h $opt_a $opt_Q);
+ die "-r and -a options are mutually exclusive\n" if ($opt_r and $opt_a);
+-@inc_dirs = inc_dirs() if $opt_a;
++my @inc_dirs = inc_dirs() if $opt_a;
+ 
+ my $Exit = 0;
+ 
+@@ -50,7 +53,7 @@
+ die "Destination directory $Dest_dir doesn't exist or isn't a directory\n"
+     unless -d $Dest_dir;
+ 
+-@isatype = split(' ',<<END);
++my @isatype = split(' ',<<END);
+ 	char	uchar	u_char
+ 	short	ushort	u_short
+ 	int	uint	u_int
+@@ -58,14 +61,18 @@
+ 	FILE	key_t	caddr_t
+ END
+ 
++my %isatype;
+ @isatype{@isatype} = (1) x @isatype;
+-$inif = 0;
++my $inif = 0;
++my %Is_converted;
+ 
+ @ARGV = ('-') unless @ARGV;
+ 
+ build_preamble_if_necessary();
+ 
+-while (defined ($file = next_file())) {
++my ($t, $tab, %curargs, $new, $eval_index, $dir, $name, $args, $outfile);
++my ($incl, $next);
++while (defined (my $file = next_file())) {
+     if (-l $file and -d $file) {
+         link_if_possible($file) if ($opt_l);
+         next;
+@@ -101,24 +108,7 @@
+     }
+ 
+     print OUT "require '_h2ph_pre.ph';\n\n";
+-    while (<IN>) {
+-	chop;
+-	while (/\\$/) {
+-	    chop;
+-	    $_ .= <IN>;
+-	    chop;
+-	}
+-	print OUT "# $_\n" if $opt_D;
+-
+-	if (s:/\*:\200:g) {
+-	    s:\*/:\201:g;
+-	    s/\200[^\201]*\201//g;	# delete single line comments
+-	    if (s/\200.*//) {		# begin multi-line comment?
+-		$_ .= '/*';
+-		$_ .= <IN>;
+-		redo;
+-	    }
+-	}
++    while (defined (local $_ = next_line())) {
+ 	if (s/^\s*\#\s*//) {
+ 	    if (s/^define\s+(\w+)//) {
+ 		$name = $1;
+@@ -129,7 +119,7 @@
+     	    	    my $proto = '() ';
+ 		    if ($args ne '') {
+     	    	    	$proto = '';
+-			foreach $arg (split(/,\s*/,$args)) {
++			foreach my $arg (split(/,\s*/,$args)) {
+ 			    $arg =~ s/^\s*([^\s].*[^\s])\s*$/$1/;
+ 			    $curargs{$arg} = 1;
+ 			}
+@@ -248,20 +238,24 @@
+ 	    } elsif(/^ident\s+(.*)/) {
+ 		print OUT $t, "# $1\n";
+ 	    }
+- 	} elsif(/^\s*(typedef\s*)?enum\s*(\s+[a-zA-Z_]\w*\s*)?\{/) {
+-	    until(/\}.*?;/) {
+-		chomp($next = <IN>);
++	} elsif(/^\s*(typedef\s*)?enum\s*(\s+[a-zA-Z_]\w*\s*)?/) {
++	    until(/\{[^}]*\}.*;/ || /;/) {
++		last unless defined ($next = next_line());
++		chomp $next;
++		# drop "#define FOO FOO" in enums
++		$next =~ s/^\s*#\s*define\s+(\w+)\s+\1\s*$//;
+ 		$_ .= $next;
+ 		print OUT "# $next\n" if $opt_D;
+ 	    }
++	    s/#\s*if.*?#\s*endif//g; # drop #ifdefs
+ 	    s@/\*.*?\*/@@g;
+ 	    s/\s+/ /g;
+-	    /^\s?(typedef\s?)?enum\s?([a-zA-Z_]\w*)?\s?\{(.*)\}\s?([a-zA-Z_]\w*)?\s?;/;
+-	    ($enum_subs = $3) =~ s/\s//g;
+-	    @enum_subs = split(/,/, $enum_subs);
+-	    $enum_val = -1;
+-	    for $enum (@enum_subs) {
+-		($enum_name, $enum_value) = $enum =~ /^([a-zA-Z_]\w*)(=.+)?$/;
++	    next unless /^\s?(typedef\s?)?enum\s?([a-zA-Z_]\w*)?\s?\{(.*)\}\s?([a-zA-Z_]\w*)?\s?;/;
++	    (my $enum_subs = $3) =~ s/\s//g;
++	    my @enum_subs = split(/,/, $enum_subs);
++	    my $enum_val = -1;
++	    foreach my $enum (@enum_subs) {
++		my ($enum_name, $enum_value) = $enum =~ /^([a-zA-Z_]\w*)(=.+)?$/;
+ 		$enum_value =~ s/^=//;
+ 		$enum_val = (length($enum_value) ? $enum_value : $enum_val + 1);
+ 		if ($opt_h) {
+@@ -280,12 +274,13 @@
+     }
+     print OUT "1;\n";
+ 
+-    $is_converted{$file} = 1;
++    $Is_converted{$file} = 1;
+     queue_includes_from($file) if ($opt_a);
+ }
+ 
+ exit $Exit;
+ 
++
+ sub reindent($) {
+     my($text) = shift;
+     $text =~ s/\n/\n    /g;
+@@ -293,9 +288,11 @@
+     $text;
+ }
+ 
++
+ sub expr {
++    my $joined_args;
+     if(keys(%curargs)) {
+-	my($joined_args) = join('|', keys(%curargs));
++	$joined_args = join('|', keys(%curargs));
+     }
+     while ($_ ne '') {
+ 	s/^\&\&// && do { $new .= " &&"; next;}; # handle && operator
+@@ -341,13 +338,13 @@
+ 	# Eliminate typedefs
+ 	/\(([\w\s]+)[\*\s]*\)\s*[\w\(]/ && do {
+ 	    foreach (split /\s+/, $1) {  # Make sure all the words are types,
+-		last unless ($isatype{$_} or $_ eq 'struct');
++		last unless ($isatype{$_} or $_ eq 'struct' or $_ eq 'union');
+ 	    }
+ 	    s/\([\w\s]+[\*\s]*\)// && next;      # then eliminate them.
+ 	};
+ 	# struct/union member, including arrays:
+ 	s/^([_A-Z]\w*(\[[^\]]+\])?((\.|->)[_A-Z]\w*(\[[^\]]+\])?)+)//i && do {
+-	    $id = $1;
++	    my $id = $1;
+ 	    $id =~ s/(\.|(->))([^\.\-]*)/->\{$3\}/g;
+ 	    $id =~ s/\b([^\$])($joined_args)/$1\$$2/g if length($joined_args);
+ 	    while($id =~ /\[\s*([^\$\&\d\]]+)\]/) {
+@@ -363,8 +360,8 @@
+ 	    $new .= " (\$$id)";
+ 	};
+ 	s/^([_a-zA-Z]\w*)//	&& do {
+-	    $id = $1;
+-	    if ($id eq 'struct') {
++	    my $id = $1;
++	    if ($id eq 'struct' || $id eq 'union') {
+ 		s/^\s+(\w+)//;
+ 		$id .= ' ' . $1;
+ 		$isatype{$id} = 1;
+@@ -377,8 +374,8 @@
+ 		$new .= '->' if /^[\[\{]/;
+ 	    } elsif ($id eq 'defined') {
+ 		$new .= 'defined';
+-	    } elsif (/^\(/) {
+-		s/^\((\w),/("$1",/ if $id =~ /^_IO[WR]*$/i;	# cheat
++	    } elsif (/^\s*\(/) {
++		s/^\s*\((\w),/("$1",/ if $id =~ /^_IO[WR]*$/i;	# cheat
+ 		$new .= " &$id";
+ 	    } elsif ($isatype{$id}) {
+ 		if ($new =~ /{\s*$/) {
+@@ -405,6 +402,66 @@
+ }
+ 
+ 
++sub next_line
++{
++    my ($in, $out);
++    my $pre_sub_tri_graphs = 1;
++
++    READ: while (not eof IN) {
++        $in  .= <IN>;
++        chomp $in;
++        next unless length $in;
++
++        while (length $in) {
++            if ($pre_sub_tri_graphs) {
++                # Preprocess all tri-graphs 
++                # including things stuck in quoted string constants.
++                $in =~ s/\?\?=/#/g;                         # | ??=|  #|
++                $in =~ s/\?\?\!/|/g;                        # | ??!|  ||
++                $in =~ s/\?\?'/^/g;                         # | ??'|  ^|
++                $in =~ s/\?\?\(/[/g;                        # | ??(|  [|
++                $in =~ s/\?\?\)/]/g;                        # | ??)|  ]|
++                $in =~ s/\?\?\-/~/g;                        # | ??-|  ~|
++                $in =~ s/\?\?\//\\/g;                       # | ??/|  \|
++                $in =~ s/\?\?</{/g;                         # | ??<|  {|
++                $in =~ s/\?\?>/}/g;                         # | ??>|  }|
++            }
++            if ($in =~ s/\\$//) {                           # \-newline
++                $out    .= ' ';
++                next READ;
++            } elsif ($in =~ s/^([^"'\\\/]+)//) {            # Passthrough
++                $out    .= $1;
++            } elsif ($in =~ s/^(\\.)//) {                   # \...
++                $out    .= $1;
++            } elsif ($in =~ s/^('(\\.|[^'\\])*')//) {       # '...
++                $out    .= $1;
++            } elsif ($in =~ s/^("(\\.|[^"\\])*")//) {       # "...
++                $out    .= $1;
++            } elsif ($in =~ s/^\/\/.*//) {                  # //...
++                # fall through
++            } elsif ($in =~ m/^\/\*/) {                     # /*...
++                # C comment removal adapted from perlfaq6:
++                if ($in =~ s/^\/\*[^*]*\*+([^\/*][^*]*\*+)*\///) {
++                    $out    .= ' ';
++                } else {                                    # Incomplete /* */
++                    next READ;
++                }
++            } elsif ($in =~ s/^(\/)//) {                    # /...
++                $out    .= $1;
++            } elsif ($in =~ s/^([^\'\"\\\/]+)//) {
++                $out    .= $1;
++            } else {
++                die "Cannot parse:\n$in\n";
++            }
++        }
++
++        last READ if $out =~ /\S/;
++    }
++
++    return $out;
++}
++
++
+ # Handle recursive subdirectories without getting a grotesquely big stack.
+ # Could this be implemented using File::Find?
+ sub next_file
+@@ -505,7 +562,7 @@
+             }
+ 
+             if ($line =~ /^#\s*include\s+<(.*?)>/) {
+-                push(@ARGV, $1) unless $is_converted{$1};
++                push(@ARGV, $1) unless $Is_converted{$1};
+             }
+         }
+     close HEADER;
+@@ -553,9 +610,9 @@
+                 print PREAMBLE "# $_=$define{$_}\n";
+             }
+ 
+-            if ($define{$_} =~ /^\d+$/) {
++            if ($define{$_} =~ /^(\d+)U?L{0,2}$/i) {
+                 print PREAMBLE
+-                    "unless (defined &$_) { sub $_() { $define{$_} } }\n\n";
++                    "unless (defined &$_) { sub $_() { $1 } }\n\n";
+             } elsif ($define{$_} =~ /^\w+$/) {
+                 print PREAMBLE
+                     "unless (defined &$_) { sub $_() { &$define{$_} } }\n\n";
+@@ -575,7 +632,8 @@
+ sub _extract_cc_defines
+ {
+     my %define;
+-    my $allsymbols = join " ", @Config{ccsymbols, cppsymbols, cppccsymbols};
++    my $allsymbols  = join " ",
++        @Config{'ccsymbols', 'cppsymbols', 'cppccsymbols'};
+ 
+     # Split compiler pre-definitions into `key=value' pairs:
+     foreach (split /\s+/, $allsymbols) {
+@@ -708,8 +766,6 @@
+ It's only intended as a rough tool.
+ You may need to dicker with the files produced.
+ 
+-Doesn't run with C<use strict>
+-
+ You have to run this program by hand; it's not run as part of the Perl
+ installation.
+ 

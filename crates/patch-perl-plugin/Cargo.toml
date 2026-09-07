@@ -1,0 +1,13 @@
+[package]
+name = "patch-perl-plugin"
+version.workspace = true
+edition.workspace = true
+license.workspace = true
+repository.workspace = true
+authors.workspace = true
+description = "SDK for writing patch-perl plugins (native C-ABI shared objects) in Rust"
+keywords = ["perl", "patch", "plugin", "ffi"]
+categories = ["development-tools::build-utils", "api-bindings"]
+readme = "../../README.md"
+
+[dependencies]

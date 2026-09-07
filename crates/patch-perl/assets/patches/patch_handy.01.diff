@@ -1,0 +1,16 @@
+--- handy.h
++++ handy.h
+@@ -43,12 +43,10 @@
+    this file first, then you will have to manually set -DHAS_BOOL in 
+    your command line to avoid a conflict.
+ */
+-#ifdef _G_HAVE_BOOL
+-# if _G_HAVE_BOOL
++#ifdef __GNUG__
+ #  ifndef HAS_BOOL
+ #   define HAS_BOOL 1
+ #  endif
+-# endif
+ #endif
+ 
+ /* The NeXT dynamic loader headers will not build with the bool macro

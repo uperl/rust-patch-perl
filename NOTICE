@@ -1,0 +1,34 @@
+patch-perl
+==========
+
+A Rust port of the Perl module Devel::PatchPerl.
+
+This crate is licensed under the same terms as Perl 5 itself:
+
+    Artistic-1.0 OR GPL-1.0-or-later
+
+See LICENSE-ARTISTIC and LICENSE-GPL for the full texts.
+
+
+Derived work
+------------
+
+The port reproduces the behaviour of Devel::PatchPerl and embeds, verbatim,
+its patch payloads and replacement `hints` files:
+
+  * Devel::PatchPerl
+    Copyright (c) 2025 Chris Williams and Marcus Holland-Moritz.
+    Licensed under the same terms as Perl 5.
+    https://metacpan.org/dist/Devel-PatchPerl
+
+  * The embedded unified diffs and hints files are themselves derived from the
+    Perl 5 source distribution.
+    Copyright (c) the Perl 5 Porters.
+    Licensed under the same terms as Perl 5.
+    https://www.perl.org/
+
+The Rust code (the patch engine, the version/dispatch logic, and the C-ABI
+plugin loader and SDK) is:
+
+  Copyright (c) 2026 Graham Ollis and contributors.
+  Licensed under the same terms as Perl 5.

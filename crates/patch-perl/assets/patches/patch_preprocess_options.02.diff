@@ -1,0 +1,13 @@
+diff --git a/perl.c b/perl.c
+index 623f9be..014d318 100644
+--- perl.c
++++ perl.c
+@@ -2631,7 +2631,7 @@ sed %s -e \"/^[^#]/b\" \
+  -e '/^#[ 	]*undef[ 	]/b' \
+  -e '/^#[ 	]*endif/b' \
+  -e 's/^[ 	]*#.*//' \
+- %s | %"SVf" -C %"SVf" %s",
++ %s | %"SVf" -C -ffreestanding %"SVf" %s",
+ #  endif
+ #ifdef LOC_SED
+ 	  LOC_SED,
