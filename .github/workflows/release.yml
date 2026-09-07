@@ -25,5 +25,7 @@ jobs:
       - id: release
         uses: uperl/action-rust-release-lib@v1
         with:
+          # the repo root is a virtual workspace manifest; release the library crate
+          package: patch-perl
           create-release: true
 
