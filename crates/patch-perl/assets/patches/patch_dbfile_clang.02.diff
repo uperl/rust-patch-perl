@@ -1,0 +1,13 @@
+--- ext/DB_File/DB_File.xs.org	2023-11-27 22:58:57.470436000 +0000
++++ ext/DB_File/DB_File.xs	2023-11-27 22:59:18.695828000 +0000
+@@ -123,9 +123,7 @@
+ #include "perl.h"
+ #include "XSUB.h"
+ 
+-#ifdef _NOT_CORE
+-#  include "ppport.h"
+-#endif
++#include "ppport.h"
+ 
+ /* Mention DB_VERSION_MAJOR_CFG, DB_VERSION_MINOR_CFG, and
+    DB_VERSION_PATCH_CFG here so that Configure pulls them all in. */

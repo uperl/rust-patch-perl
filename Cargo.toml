@@ -1,12 +1,23 @@
-[package]
-name = "patch-perl"
+[workspace]
+resolver = "2"
+members = [
+    "crates/patch-perl",
+    "crates/patch-perl-plugin",
+    "crates/patch-perl-plugin-example",
+]
+
+[workspace.package]
 version = "0.1.0"
-edition = "2024"
-description = "Rust port of the classic Devel::PatchPerl"
+edition = "2021"
+license = "Artistic-1.0 OR GPL-1.0-or-later"
 repository = "https://github.com/uperl/patch-perl"
-license = "MIT"
+authors = ["Graham Ollis <plicease@cpan.org>"]
 
-[dependencies]
-anyhow = "1.0.104"
-
-
+[workspace.dependencies]
+patch-perl = { path = "crates/patch-perl", version = "0.1.0" }
+patch-perl-plugin = { path = "crates/patch-perl-plugin", version = "0.1.0" }
+regex = "1.10"
+libloading = "0.8"
+thiserror = "2.0"
+log = "0.4"
+tempfile = "3.10"

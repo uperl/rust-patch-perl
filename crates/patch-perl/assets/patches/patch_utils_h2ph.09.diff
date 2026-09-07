@@ -1,0 +1,221 @@
+--- utils/h2ph.PL
++++ utils/h2ph.PL
+@@ -58,13 +58,14 @@
+ die "Destination directory $Dest_dir doesn't exist or isn't a directory\n"
+     unless -d $Dest_dir;
+ 
+-my @isatype = split(' ',<<END);
++my @isatype = qw(
+ 	char	uchar	u_char
+ 	short	ushort	u_short
+ 	int	uint	u_int
+ 	long	ulong	u_long
+ 	FILE	key_t	caddr_t
+-END
++	float	double	size_t
++);
+ 
+ my %isatype;
+ @isatype{@isatype} = (1) x @isatype;
+@@ -133,19 +134,20 @@
+ 		s/\(\w+\s*\(\*\)\s*\(\w*\)\)\s*(-?\d+)/$1/; # (int (*)(foo_t))0
+ 		if (s/^\(([\w,\s]*)\)//) {
+ 		    $args = $1;
+-    	    	    my $proto = '() ';
++		    my $proto = '() ';
+ 		    if ($args ne '') {
+-    	    	    	$proto = '';
++			$proto = '';
+ 			foreach my $arg (split(/,\s*/,$args)) {
+ 			    $arg =~ s/^\s*([^\s].*[^\s])\s*$/$1/;
+ 			    $curargs{$arg} = 1;
+ 			}
+ 			$args =~ s/\b(\w)/\$$1/g;
+-			$args = "local($args) = \@_;\n$t    ";
++			$args = "my($args) = \@_;\n$t    ";
+ 		    }
+ 		    s/^\s+//;
+ 		    expr();
+ 		    $new =~ s/(["\\])/\\$1/g;       #"]);
++		  EMIT:
+ 		    $new = reindent($new);
+ 		    $args = reindent($args);
+ 		    if ($t ne '') {
+@@ -268,12 +270,14 @@
+ 	    } elsif(/^ident\s+(.*)/) {
+ 		print OUT $t, "# $1\n";
+ 	    }
+-	} elsif(/^\s*(typedef\s*)?enum\s*(\s+[a-zA-Z_]\w*\s*)?/) {
++	} elsif (/^\s*(typedef\s*)?enum\s*(\s+[a-zA-Z_]\w*\s*)?/) { # { for vi
+ 	    until(/\{[^}]*\}.*;/ || /;/) {
+ 		last unless defined ($next = next_line($file));
+ 		chomp $next;
+ 		# drop "#define FOO FOO" in enums
+ 		$next =~ s/^\s*#\s*define\s+(\w+)\s+\1\s*$//;
++		# #defines in enums (aliases)
++		$next =~ s/^\s*#\s*define\s+(\w+)\s+(\w+)\s*$/$1 = $2,/;
+ 		$_ .= $next;
+ 		print OUT "# $next\n" if $opt_D;
+ 	    }
+@@ -286,6 +290,7 @@
+ 	    my $enum_val = -1;
+ 	    foreach my $enum (@enum_subs) {
+ 		my ($enum_name, $enum_value) = $enum =~ /^([a-zA-Z_]\w*)(=.+)?$/;
++		$enum_name or next;
+ 		$enum_value =~ s/^=//;
+ 		$enum_val = (length($enum_value) ? $enum_value : $enum_val + 1);
+ 		if ($opt_h) {
+@@ -300,6 +305,75 @@
+ 			       "unless defined(\&$enum_name);\n");
+ 		}
+ 	    }
++	} elsif (/^(?:__extension__\s+)?(?:extern|static)\s+(?:__)?inline(?:__)?\s+/
++	    and !/;\s*$/ and !/{\s*}\s*$/)
++	{ # { for vi
++	    # This is a hack to parse the inline functions in the glibc headers.
++	    # Warning: massive kludge ahead. We suppose inline functions
++	    # are mainly constructed like macros.
++	    while (1) {
++		last unless defined ($next = next_line($file));
++		chomp $next;
++		undef $_, last if $next =~ /__THROW\s*;/
++			       or $next =~ /^(__extension__|extern|static)\b/;
++		$_ .= " $next";
++		print OUT "# $next\n" if $opt_D;
++		last if $next =~ /^}|^{.*}\s*$/;
++	    }
++	    next if not defined; # because it's only a prototype
++	    s/\b(__extension__|extern|static|(?:__)?inline(?:__)?)\b//g;
++	    # violently drop #ifdefs
++	    s/#\s*if.*?#\s*endif//g
++		and print OUT "# some #ifdef were dropped here -- fill in the blanks\n";
++	    if (s/^(?:\w|\s|\*)*\s(\w+)\s*//) {
++		$name = $1;
++	    } else {
++		warn "name not found"; next; # shouldn't occur...
++	    }
++	    my @args;
++	    if (s/^\(([^()]*)\)\s*(\w+\s*)*//) {
++		for my $arg (split /,/, $1) {
++		    if ($arg =~ /(\w+)\s*$/) {
++			$curargs{$1} = 1;
++			push @args, $1;
++		    }
++		}
++	    }
++	    $args = (
++		@args
++		? "my(" . (join ',', map "\$$_", @args) . ") = \@_;\n$t    "
++		: ""
++	    );
++	    my $proto = @args ? '' : '() ';
++	    $new = '';
++	    s/\breturn\b//g; # "return" doesn't occur in macros usually...
++	    expr();
++	    # try to find and perlify local C variables
++	    our @local_variables = (); # needs to be a our(): (?{...}) bug workaround
++	    {
++		use re "eval";
++		my $typelist = join '|', keys %isatype;
++		$new =~ s['
++		  (?:(?:un)?signed\s+)?
++		  (?:long\s+)?
++		  (?:$typelist)\s+
++		  (\w+)
++		  (?{ push @local_variables, $1 })
++		  ']
++		 [my \$$1]gx;
++		$new =~ s['
++		  (?:(?:un)?signed\s+)?
++		  (?:long\s+)?
++		  (?:$typelist)\s+
++		  ' \s+ &(\w+) \s* ;
++		  (?{ push @local_variables, $1 })
++		  ]
++		 [my \$$1;]gx;
++	     }
++	    $new =~ s/&$_\b/\$$_/g for @local_variables;
++	    $new =~ s/(["\\])/\\$1/g;       #"]);
++	    # now that's almost like a macro (we hope)
++	    goto EMIT;
+ 	}
+     }
+     $Is_converted{$file} = 1;
+@@ -308,7 +382,7 @@
+         $next = '';
+     } else {
+         print OUT "1;\n";
+-    queue_includes_from($file) if ($opt_a);
++	queue_includes_from($file) if $opt_a;
+     }
+ }
+ 
+@@ -320,6 +394,7 @@
+ exit $Exit;
+ 
+ sub expr {
++    $new = '"(assembly code)"' and return if /\b__asm__\b/; # freak out.
+     my $joined_args;
+     if(keys(%curargs)) {
+ 	$joined_args = join('|', keys(%curargs));
+@@ -328,7 +403,7 @@
+ 	s/^\&\&// && do { $new .= " &&"; next;}; # handle && operator
+ 	s/^\&([\(a-z\)]+)/$1/i;	# hack for things that take the address of
+ 	s/^(\s+)//		&& do {$new .= ' '; next;};
+-	s/^0X([0-9A-F]+)[UL]*//i 
++	s/^0X([0-9A-F]+)[UL]*//i
+ 	    && do {my $hex = $1;
+ 		   $hex =~ s/^0+//;
+ 		   if (length $hex > 8 && !$Config{use64bitint}) {
+@@ -380,10 +455,16 @@
+         };
+ 	# Eliminate typedefs
+ 	/\(([\w\s]+)[\*\s]*\)\s*[\w\(]/ && do {
++	    my $doit = 1;
+ 	    foreach (split /\s+/, $1) {  # Make sure all the words are types,
+-		last unless ($isatype{$_} or $_ eq 'struct' or $_ eq 'union');
++	        unless($isatype{$_} or $_ eq 'struct' or $_ eq 'union'){
++		    $doit = 0;
++		    last;
++		}
++	    }
++	    if( $doit ){
++		s/\([\w\s]+[\*\s]*\)// && next;      # then eliminate them.
+ 	    }
+-	    s/\([\w\s]+[\*\s]*\)// && next;      # then eliminate them.
+ 	};
+ 	# struct/union member, including arrays:
+ 	s/^([_A-Z]\w*(\[[^\]]+\])?((\.|->)[_A-Z]\w*(\[[^\]]+\])?)+)//i && do {
+@@ -458,7 +539,7 @@
+ 
+         while (length $in) {
+             if ($pre_sub_tri_graphs) {
+-                # Preprocess all tri-graphs 
++                # Preprocess all tri-graphs
+                 # including things stuck in quoted string constants.
+                 $in =~ s/\?\?=/#/g;                         # | ??=|  #|
+                 $in =~ s/\?\?\!/|/g;                        # | ??!|  ||
+@@ -471,17 +552,19 @@
+                 $in =~ s/\?\?>/}/g;                         # | ??>|  }|
+             }
+ 	    if ($in =~ /^\#ifdef __LANGUAGE_PASCAL__/) {
+-                # Tru64 disassembler.h evilness: mixed C and Pascal.
++		# Tru64 disassembler.h evilness: mixed C and Pascal.
+ 		while (<IN>) {
+-		    last if /^\#endif/; 
++		    last if /^\#endif/;
+ 		}
++		$in = "";
+ 		next READ;
+ 	    }
+ 	    if ($in =~ /^extern inline / && # Inlined assembler.
+ 		$^O eq 'linux' && $file =~ m!(?:^|/)asm/[^/]+\.h$!) {
+- 		while (<IN>) {
+-		    last if /^}/; 
++		while (<IN>) {
++		    last if /^}/;
+ 		}
++		$in = "";
+ 		next READ;
+ 	    }
+             if ($in =~ s/\\$//) {                           # \-newline

@@ -1,0 +1,20 @@
+[package]
+name = "patch-perl"
+version.workspace = true
+edition.workspace = true
+license.workspace = true
+repository.workspace = true
+authors.workspace = true
+description = "Rust port of the classic Devel::PatchPerl: patch a Perl source tree so it builds on a modern toolchain"
+keywords = ["perl", "patch", "build", "perlbrew"]
+categories = ["development-tools::build-utils"]
+readme = "../../README.md"
+
+[dependencies]
+regex.workspace = true
+libloading.workspace = true
+thiserror.workspace = true
+log.workspace = true
+
+[dev-dependencies]
+tempfile.workspace = true
