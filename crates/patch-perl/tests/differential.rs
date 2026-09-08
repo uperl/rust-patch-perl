@@ -12,6 +12,11 @@
 //! the two trees are byte-identical (ignoring GNU-`patch` / `perl -i` backup
 //! artefacts). `PATCH_PERL_VERSION` / `PATCH_PERL_PATCHLEVEL_LABEL` make the two
 //! "patched by" strings match.
+//!
+//! This crate is a port of `Devel::PatchPerl` 2.14 (2025-08-30); the comparison
+//! is only meaningful against that upstream release. It reads
+//! `$Devel::PatchPerl::VERSION` from the installed module but does not assert on
+//! it, so a mismatch shows up as tree divergence rather than a clear message.
 
 use std::fs;
 use std::path::Path;

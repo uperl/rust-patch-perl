@@ -7,7 +7,7 @@ A Rust port of the classic Perl module
 Perl still builds on a modern toolchain. It is what `perlbrew` and `Perl::Build`
 use under the hood. This crate is a faithful port of the **library** (the
 `patchperl` command-line tool is out of scope), verified byte-for-byte against
-`Devel::PatchPerl` 2.14 for Perl 5.6.0 through 5.40.
+[`Devel::PatchPerl` 2.14](#upstream-version) for Perl 5.6.0 through 5.40.
 
 Two things are done differently on purpose:
 
@@ -127,6 +127,30 @@ running executable (and its `deps/`). Filenames tried:
 | `PATCH_PERL_FAKE_OS`           | override the detected OS (testing)                         |
 | `PATCH_PERL_VERSION`           | version token written by `_patch_develpatchperlversion`    |
 | `PATCH_PERL_PATCHLEVEL_LABEL`  | full label written into `patchlevel.h`'s `local_patches[]` |
+
+## Upstream version
+
+This port is based on **`Devel::PatchPerl` 2.14**, released 2025-08-30 by Chris
+Williams (BINGOS) — the current release at the time of the port:
+<https://metacpan.org/release/BINGOS/Devel-PatchPerl-2.14>.
+
+Taken from that release and reproduced here:
+
+* the `@patch` dispatch table (every `_patch_*` routine, its version ranges, and
+  the OS / header-file / `.git` gating), transcribed 1:1;
+* the 13 replacement `hints/*.sh` files and every embedded unified diff, embedded
+  verbatim under [`crates/patch-perl/assets/`](crates/patch-perl/assets);
+* the certification gates `CERTIFIED` (`5.33.2`) and `HINTSCERT` (`5.41.12`);
+* two behaviours specific to 2.14: the GCC brace-groups patching is "defanged"
+  (not applied), and a `PERL5_PATCHPERL_PLUGIN` plugin runs regardless of
+  certification.
+
+Not reproduced: the `patchperl` CLI, and the Perl-module plugin loader (replaced
+by the C-ABI loader described above).
+
+To move to a newer upstream release, re-extract `assets/`, reconcile `@patch` and
+the gate constants, and re-run the differential test below against a Perl that
+has the new `Devel::PatchPerl` installed.
 
 ## Verifying against upstream
 

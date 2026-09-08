@@ -1,7 +1,7 @@
 //! Perl version parsing and normalisation.
 //!
 //! Ports `Devel::PatchPerl::_norm_ver`, `_determine_version` and the two
-//! `use constant` gates `CERTIFIED` / `HINTSCERT`.
+//! `use constant` gates `CERTIFIED` / `HINTSCERT`, as of `Devel::PatchPerl` 2.14.
 
 use std::path::Path;
 use std::sync::LazyLock;
