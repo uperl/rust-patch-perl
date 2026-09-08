@@ -7,15 +7,15 @@ members = [
 ]
 
 [workspace.package]
-version = "0.1.1"
+version = "0.1.2"
 edition = "2021"
 license = "Artistic-1.0 OR GPL-1.0-or-later"
 repository = "https://github.com/uperl/patch-perl"
 authors = ["Graham Ollis <plicease@cpan.org>"]
 
 [workspace.dependencies]
-patch-perl = { path = "crates/patch-perl", version = "0.1.1" }
-patch-perl-plugin = { path = "crates/patch-perl-plugin", version = "0.1.1" }
+patch-perl = { path = "crates/patch-perl", version = "0.1.2" }
+patch-perl-plugin = { path = "crates/patch-perl-plugin", version = "0.1.2" }
 regex = "1.10"
 libloading = "0.8"
 thiserror = "2.0"
