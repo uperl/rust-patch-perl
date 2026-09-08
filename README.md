@@ -101,6 +101,14 @@ crate-type = ["cdylib"]
 
 A worked example is in [`crates/patch-perl-plugin-example`](crates/patch-perl-plugin-example).
 
+### Writing a plugin in C
+
+Include [`include/patch_perl_plugin.h`](include/patch_perl_plugin.h) and export
+`patch_perl_plugin_abi_version` and `patch_perl_plugin_run`. A worked example
+with a `Makefile` is in [`examples/c-plugin`](examples/c-plugin); it is compiled
+and exercised by `crates/patch-perl/tests/c_plugin.rs` when a C compiler is
+present.
+
 ### Plugin search path
 
 For a bare name, these directories are searched (in order): each entry of

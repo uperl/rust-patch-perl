@@ -16,3 +16,7 @@ Cargo.lock
 .idea/
 
 /setup.sh
+
+# C example plugin build artifacts
+/examples/c-plugin/libpatch_perl_plugin_cexample.*
+/examples/c-plugin/patch_perl_plugin_cexample.dll
