@@ -30,7 +30,15 @@
 //! set; replacement `hints` files stop at Perl 5.42 (`HINTSCERT`). Plugins run
 //! regardless of version.
 //!
+//! # Upstream version
+//!
+//! Ported from [`Devel::PatchPerl` 2.14][rel] (released 2025-08-30 by Chris
+//! Williams / BINGOS). The `@patch` dispatch table, the `CERTIFIED` (`5.33.2`)
+//! and `HINTSCERT` (`5.41.12`) gates, the replacement `hints/*.sh` files and the
+//! embedded diffs are all taken from that release; see the README for details.
+//!
 //! [dpp]: https://metacpan.org/pod/Devel::PatchPerl
+//! [rel]: https://metacpan.org/release/BINGOS/Devel-PatchPerl-2.14
 
 // Version-range guards below are transcribed from upstream `return unless
 // $num < X` statements; the `!(a < b)` form keeps that mapping obvious.

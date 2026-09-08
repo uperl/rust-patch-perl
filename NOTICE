@@ -16,10 +16,10 @@ Derived work
 The port reproduces the behaviour of Devel::PatchPerl and embeds, verbatim,
 its patch payloads and replacement `hints` files:
 
-  * Devel::PatchPerl
+  * Devel::PatchPerl 2.14 (released 2025-08-30 by Chris Williams / BINGOS).
     Copyright (c) 2025 Chris Williams and Marcus Holland-Moritz.
     Licensed under the same terms as Perl 5.
-    https://metacpan.org/dist/Devel-PatchPerl
+    https://metacpan.org/release/BINGOS/Devel-PatchPerl-2.14
 
   * The embedded unified diffs and hints files are themselves derived from the
     Perl 5 source distribution.
